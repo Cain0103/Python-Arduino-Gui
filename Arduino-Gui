@@ -1,0 +1,64 @@
+import tkinter as tk
+from tkinter import messagebox
+from pyfirmata import Arduino, PWM
+from time import sleep
+
+def LedON():
+    try:
+        delay = float(LEDtime.get())
+    except ValueError:
+        delay = 0.1
+    brightness = float(LEDbright.get())
+    bluebtn.config(state = tk.DISABLED, bg="blue")
+    board.digital[3].write(brightness/100.0)
+    sleep(delay)
+    board.digital[3].write(1)
+    bluebtn.config(state = tk.ACTIVE)
+def LedOFF():
+    try:
+        delay = float(LEDtime.get())
+    except ValueError:
+        delay = 0.1
+    brightness = float(LEDbright.get())
+    redbtn.config(state = tk.DISABLED, bg="red")
+    board.digital[3].write(brightness/100.0)
+    sleep(delay)
+    board.digital[3].write(0)
+    redbtn.config(state = tk.ACTIVE)
+
+def aboutMsg():
+    messagebox.showinfo("Информация", "Версия программы: 1.0\nУправление LED через Arduino")
+
+board = Arduino("COM3")
+
+board.digital[3].mode = PWM
+board.digital[5].mode = PWM
+
+win = tk.Tk()
+# инициализация окна
+win.title("Dimmer LED")
+win.minsize(235,180)
+
+LEDtime = tk.Entry(win, bd=4, width=8)
+LEDtime.grid(column=1, row=1)
+
+tk.Label(win, text="LED вкл Время (сек)").grid(column=2, row=1)
+
+LEDbright = tk.Scale(win, bd=5, from_=0, to=100, orient=tk.HORIZONTAL)
+LEDbright.grid(column=1, row=2)
+
+tk.Label(win, text="Яркость LED")
+
+bluebtn = tk.Button(win, bd=4, text="LED вкл", command=LedON)
+bluebtn.grid(column=1, row=4)
+
+redbtn = tk.Button(win, bd=4, text="LED выкл", command=LedOFF)
+redbtn.grid(column=2, row=4)
+
+infoBtn = tk.Button(win, bd=4, text="Инфо", command=aboutMsg)
+infoBtn.grid(column=1, row=5, sticky="ew")
+
+exitBtn = tk.Button(win, bd=4, text="Выйти", command=win.destroy)
+exitBtn.grid(column=2, row=5, sticky="ew")
+
+win.mainloop()
