@@ -1,64 +1,103 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, Menu
 from pyfirmata import Arduino, PWM
 from time import sleep
 
-def LedON():
+# --- Логика работы с Arduino ---
+try:
+    board = Arduino("COM3")
+    board.digital[3].mode = PWM
+    board.digital[5].mode = PWM
+except Exception as e:
+    messagebox.showerror("Ошибка", f"Не удалось подключить Arduino: {e}")
+    exit()
+
+def LedON(event=None): # Добавлен аргумент event для работы с bind
     try:
         delay = float(LEDtime.get())
     except ValueError:
         delay = 0.1
+    
+    # Получаем значение яркости из шкалы
     brightness = float(LEDbright.get())
-    bluebtn.config(state = tk.DISABLED, bg="blue")
-    board.digital[3].write(brightness/100.0)
+    
+    bluebtn.config(state=tk.DISABLED, bg="blue")
+    # pyfirmata принимает значения от 0.0 до 1.0
+    board.digital[3].write(brightness / 100.0) 
     sleep(delay)
-    board.digital[3].write(1)
-    bluebtn.config(state = tk.ACTIVE)
-def LedOFF():
+    board.digital[3].write(1) 
+    bluebtn.config(state=tk.ACTIVE)
+
+def LedOFF(event=None): # Добавлен аргумент event для работы с bind
     try:
         delay = float(LEDtime.get())
     except ValueError:
         delay = 0.1
+    
     brightness = float(LEDbright.get())
-    redbtn.config(state = tk.DISABLED, bg="red")
-    board.digital[3].write(brightness/100.0)
+    
+    redbtn.config(state=tk.DISABLED, bg="red")
+    board.digital[3].write(brightness / 100.0)
     sleep(delay)
     board.digital[3].write(0)
-    redbtn.config(state = tk.ACTIVE)
+    redbtn.config(state=tk.ACTIVE)
 
 def aboutMsg():
-    messagebox.showinfo("Информация", "Версия программы: 1.0\nУправление LED через Arduino")
+    messagebox.showinfo("Информация", "Версия программы: 2.0\nУправление LED через Arduino\nИспользованы новые виджеты и события.")
 
-board = Arduino("COM3")
-
-board.digital[3].mode = PWM
-board.digital[5].mode = PWM
-
+# --- Создание графического интерфейса ---
 win = tk.Tk()
-# инициализация окна
-win.title("Dimmer LED")
-win.minsize(235,180)
+win.title("Dimmer LED Control")
+win.geometry("300x250") # Размер окна
 
-LEDtime = tk.Entry(win, bd=4, width=8)
-LEDtime.grid(column=1, row=1)
+# 1. Использование виджета Menu
+main_menu = Menu(win)
+win.config(menu=main_menu)
 
-tk.Label(win, text="LED вкл Время (сек)").grid(column=2, row=1)
+# Меню "Файл"
+file_menu = Menu(main_menu, tearoff=0)
+file_menu.add_command(label="Выход (Ctrl+Q)", command=win.destroy)
+main_menu.add_cascade(label="Файл", menu=file_menu)
 
-LEDbright = tk.Scale(win, bd=5, from_=0, to=100, orient=tk.HORIZONTAL)
-LEDbright.grid(column=1, row=2)
+# Меню "Справка"
+help_menu = Menu(main_menu, tearoff=0)
+help_menu.add_command(label="О программе", command=aboutMsg)
+main_menu.add_cascade(label="Справка", menu=help_menu)
 
-tk.Label(win, text="Яркость LED")
+# 2. Настройка сетки (Grid) для размещения виджетов
+# Делаем столбцы растягиваемыми
+win.columnconfigure(0, weight=1)
+win.columnconfigure(1, weight=1)
 
-bluebtn = tk.Button(win, bd=4, text="LED вкл", command=LedON)
-bluebtn.grid(column=1, row=4)
+# Поле ввода времени
+tk.Label(win, text="Время задержки (сек):").grid(column=0, row=0, sticky="e", padx=5, pady=5)
+LEDtime = tk.Entry(win, bd=3, width=10, justify="center") # justify - выравнивание текста 
+LEDtime.insert(0, "0.5") # Значение по умолчанию
+LEDtime.grid(column=1, row=0, sticky="w", padx=5, pady=5)
 
-redbtn = tk.Button(win, bd=4, text="LED выкл", command=LedOFF)
-redbtn.grid(column=2, row=4)
+# Шкала яркости (Scale) с расширенными настройками
+LEDbright = tk.Scale(win, 
+                     from_=0, 
+                     to=100, 
+                     orient=tk.HORIZONTAL, 
+                     label="Яркость LED (%)", 
+                     tickinterval=25,  # Подписи делений шкалы
+                     length=200)       # Длина шкалы в пикселях
+LEDbright.set(50) # Значение по умолчанию
+LEDbright.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
 
-infoBtn = tk.Button(win, bd=4, text="Инфо", command=aboutMsg)
-infoBtn.grid(column=1, row=5, sticky="ew")
+# Кнопки управления
+# sticky="ew" растягивает кнопку на всю ширину ячейки
+bluebtn = tk.Button(win, bd=4, text="ВКЛ (Key: 1)", command=LedON, bg="#ddddff")
+bluebtn.grid(column=0, row=2, padx=10, pady=10, sticky="ew")
 
-exitBtn = tk.Button(win, bd=4, text="Выйти", command=win.destroy)
-exitBtn.grid(column=2, row=5, sticky="ew")
+redbtn = tk.Button(win, bd=4, text="ВЫКЛ (Key: 0)", command=LedOFF, bg="#ffdddd")
+redbtn.grid(column=1, row=2, padx=10, pady=10, sticky="ew")
+
+# 3. Привязка событий (Bind)
+# Позволяет управлять программой с клавиатуры без мыши
+win.bind('<KeyPress-1>', LedON)        # Клавиша "1" включает LED
+win.bind('<KeyPress-0>', LedOFF)       # Клавиша "0" выключает LED
+win.bind('<Control-q>', lambda e: win.destroy()) # Ctrl+Q для выхода [cite: 252]
 
 win.mainloop()
